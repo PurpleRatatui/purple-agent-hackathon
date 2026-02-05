@@ -7,6 +7,7 @@ import { WalletButton } from "./WalletButton";
 const navItems = [
     { href: "/", label: "Home", icon: "🏠" },
     { href: "/stake", label: "Stake Knowledge", icon: "📚" },
+    { href: "/propose", label: "Propose", icon: "📝" },
     { href: "/query", label: "Ask the Sage", icon: "🔮" },
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
 ];
@@ -31,8 +32,8 @@ export function Navbar() {
                                 key={item.href}
                                 href={item.href}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${pathname === item.href
-                                        ? "bg-purple-500/20 text-purple-300"
-                                        : "text-gray-400 hover:text-white hover:bg-white/5"
+                                    ? "bg-purple-500/20 text-purple-300"
+                                    : "text-gray-400 hover:text-white hover:bg-white/5"
                                     }`}
                             >
                                 <span>{item.icon}</span>
