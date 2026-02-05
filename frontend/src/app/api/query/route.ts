@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+    aggregateKnowledge,
+    SourcedKnowledge,
+    SOURCE_TRUST_SCORES,
+    SOURCE_INFO,
+    KnowledgeSource
+} from '@/lib/knowledge-sources';
 
-interface KnowledgeEntry {
+interface OnChainKnowledgeEntry {
     staker: string;
     title: string;
     content: string;
@@ -12,98 +19,70 @@ interface Attribution {
     title: string;
     relevance: number;
     reward: number;
+    source: KnowledgeSource;
+    sourceLabel: string;
+    sourceEmoji: string;
+    sourceUrl?: string;
+    verified: boolean;
 }
 
-// More sophisticated keyword matching with exact and partial match scoring
-function calculateRelevance(query: string, entry: KnowledgeEntry): number {
-    const queryLower = query.toLowerCase();
-    const titleLower = entry.title.toLowerCase();
-    const contentLower = entry.content.toLowerCase();
-    const categoryLower = entry.category.toLowerCase();
-
-    let score = 0;
-
-    // Extract meaningful words (3+ chars, no common words)
-    const stopWords = ['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'has', 'what', 'how', 'why', 'when', 'where', 'who', 'which', 'this', 'that', 'with', 'from', 'have', 'been', 'will', 'would', 'could', 'should', 'about', 'into', 'your', 'does', 'know', 'tell', 'about'];
-    const queryWords = queryLower.split(/\s+/).filter(w => w.length >= 3 && !stopWords.includes(w));
-
-    if (queryWords.length === 0) return 0;
-
-    // Check for exact phrase match in title (highest weight)
-    if (titleLower.includes(queryLower)) {
-        score += 50;
-    }
-
-    // Check each query word
-    let matchedWords = 0;
-    for (const word of queryWords) {
-        // Exact word match in title
-        if (titleLower.includes(word)) {
-            score += 15;
-            matchedWords++;
-        }
-        // Exact word match in category
-        if (categoryLower.includes(word)) {
-            score += 10;
-            matchedWords++;
-        }
-        // Exact word match in content
-        if (contentLower.includes(word)) {
-            score += 5;
-            matchedWords++;
-        }
-    }
-
-    // Require at least one meaningful word to match
-    if (matchedWords === 0) {
-        return 0;
-    }
-
-    // Coverage bonus - what percentage of query words matched?
-    const coverage = matchedWords / queryWords.length;
-    score = Math.round(score * coverage);
-
-    return Math.min(95, score);
-}
-
-// Generate intelligent response based on matches (or lack thereof)
-function generateResponse(query: string, matches: { entry: KnowledgeEntry; relevance: number }[]): string {
-    // No good matches found
-    if (matches.length === 0) {
+// Generate response based on aggregated multi-source matches
+function generateMultiSourceResponse(
+    query: string,
+    results: {
+        id: string;
+        title: string;
+        content: string;
+        category: string;
+        source: KnowledgeSource;
+        sourceUrl?: string;
+        relevanceScore: number;
+        combinedScore: number;
+        verified: boolean;
+    }[],
+    totalSources: number,
+    processingTime: number
+): string {
+    if (results.length === 0) {
         return `🤔 I don't have specific knowledge about "${query}" yet.
 
-The SolSage knowledge base is still growing! Here's what you can do:
+The SolSage knowledge base aggregates from multiple sources including:
+• **On-Chain** - Community-staked knowledge backed by SOL
+• **Official Docs** - Solana documentation
+• **Moltbook AI** - AI agent network
+• **GitHub** - Open source repositories
 
-• **Be the first to contribute** - Head to the Stake page and share your expertise on this topic
-• **Try different keywords** - Rephrase your question with related terms
-• **Browse existing knowledge** - Check the Dashboard to see what topics are covered
-
-The more experts stake their knowledge, the smarter I become! 🌭`;
+**Be the first to contribute!** Head to the Stake page and share your expertise on this topic. 🌭`;
     }
 
-    // Build response from matched knowledge
-    const topMatch = matches[0];
+    const topMatch = results[0];
+    const sourceInfo = SOURCE_INFO[topMatch.source];
 
-    if (matches.length === 1) {
-        return `Based on community knowledge, here's what I found about your question:
+    if (results.length === 1) {
+        return `${sourceInfo.emoji} **Source: ${sourceInfo.label}**${topMatch.verified ? ' ✓ Verified' : ''}
 
-📚 **${topMatch.entry.title}** (${topMatch.entry.category})
+## ${topMatch.title}
 
-${topMatch.entry.content}
+${topMatch.content}
 
 ---
-*Relevance: ${topMatch.relevance}% match. The contributor has been attributed $SAGE rewards.*`;
+*Relevance: ${topMatch.relevanceScore}% | Trust: ${SOURCE_TRUST_SCORES[topMatch.source]}% | Aggregated in ${processingTime}ms*`;
     }
 
-    // Multiple matches
-    let response = `I found ${matches.length} relevant knowledge entries:\n\n`;
+    // Multiple matches from multiple sources
+    let response = `📚 **Found ${results.length} results from ${totalSources} source${totalSources > 1 ? 's' : ''}** (${processingTime}ms)\n\n`;
 
-    matches.forEach((m, i) => {
-        response += `**${i + 1}. ${m.entry.title}** (${m.entry.category})\n`;
-        response += `${m.entry.content}\n\n`;
+    results.forEach((r, i) => {
+        const info = SOURCE_INFO[r.source];
+        response += `### ${i + 1}. ${r.title}\n`;
+        response += `${info.emoji} ${info.label}${r.verified ? ' ✓' : ''} | Relevance: ${r.relevanceScore}%\n\n`;
+        response += `${r.content}\n\n`;
+        if (r.sourceUrl) {
+            response += `[View Source](${r.sourceUrl})\n\n`;
+        }
     });
 
-    response += `---\n*All contributors have been attributed and will receive $SAGE rewards.*`;
+    response += `---\n*Knowledge aggregated from ${totalSources} source${totalSources > 1 ? 's' : ''}. On-chain contributors receive $SAGE rewards.*`;
 
     return response;
 }
@@ -116,34 +95,57 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Query is required' }, { status: 400 });
         }
 
-        const entries: KnowledgeEntry[] = knowledgeEntries || [];
-
-        // Calculate relevance for each entry with HIGHER threshold
-        const scoredEntries = entries
-            .map(entry => ({
-                entry,
-                relevance: calculateRelevance(query, entry)
-            }))
-            .filter(e => e.relevance >= 30) // HIGHER threshold - need 30%+ to match
-            .sort((a, b) => b.relevance - a.relevance)
-            .slice(0, 3); // Top 3 matches
-
-        // Generate attributions only for real matches
-        const attributions: Attribution[] = scoredEntries.map((e, i) => ({
-            staker: e.entry.staker,
-            title: e.entry.title,
-            relevance: e.relevance,
-            reward: Math.max(1, Math.floor(e.relevance / 15) - i) // More proportional rewards
+        // Convert on-chain entries to SourcedKnowledge format
+        const onChainEntries: OnChainKnowledgeEntry[] = knowledgeEntries || [];
+        const onChainKnowledge: SourcedKnowledge[] = onChainEntries.map((entry, i) => ({
+            id: `on-chain-${i}`,
+            title: entry.title,
+            content: entry.content,
+            category: entry.category,
+            source: 'on_chain' as KnowledgeSource,
+            sourceMetadata: { staker: entry.staker },
+            trustScore: SOURCE_TRUST_SCORES.on_chain,
+            verified: true,
         }));
 
-        // Generate appropriate response
-        const answer = generateResponse(query, scoredEntries);
+        // Aggregate from all sources (on-chain + external)
+        const aggregation = await aggregateKnowledge(query, onChainKnowledge);
+
+        // Generate attributions for on-chain sources (they get rewards)
+        const attributions: Attribution[] = aggregation.results
+            .map((r, i) => {
+                const info = SOURCE_INFO[r.source];
+                return {
+                    staker: r.sourceMetadata?.staker || r.source,
+                    title: r.title,
+                    relevance: r.relevanceScore,
+                    reward: r.source === 'on_chain'
+                        ? Math.max(1, Math.floor(r.combinedScore / 15) - i)
+                        : 0, // Only on-chain sources get rewards
+                    source: r.source,
+                    sourceLabel: info.label,
+                    sourceEmoji: info.emoji,
+                    sourceUrl: r.sourceUrl,
+                    verified: r.verified,
+                };
+            });
+
+        // Generate response
+        const answer = generateMultiSourceResponse(
+            query,
+            aggregation.results,
+            aggregation.totalSources,
+            aggregation.processingTime
+        );
 
         return NextResponse.json({
             answer,
             attributions,
-            matchedCount: scoredEntries.length,
-            hasMatches: scoredEntries.length > 0
+            matchedCount: aggregation.results.length,
+            hasMatches: aggregation.results.length > 0,
+            sourceBreakdown: aggregation.sourceBreakdown,
+            totalSources: aggregation.totalSources,
+            processingTime: aggregation.processingTime,
         });
 
     } catch (error) {

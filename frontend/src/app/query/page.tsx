@@ -8,6 +8,11 @@ interface Attribution {
     title: string;
     relevance: number;
     reward: number;
+    source?: string;
+    sourceLabel?: string;
+    sourceEmoji?: string;
+    sourceUrl?: string;
+    verified?: boolean;
 }
 
 interface Message {
@@ -133,8 +138,8 @@ function AnimatedMessage({
                         <button
                             onClick={() => onFeedback(message.id, "up")}
                             className={`p-1.5 rounded transition-colors ${message.feedback === "up"
-                                    ? "text-emerald-400 bg-emerald-500/20"
-                                    : "text-gray-500 hover:text-gray-300 hover:bg-gray-700/50"
+                                ? "text-emerald-400 bg-emerald-500/20"
+                                : "text-gray-500 hover:text-gray-300 hover:bg-gray-700/50"
                                 }`}
                             title="Good response"
                         >
@@ -143,8 +148,8 @@ function AnimatedMessage({
                         <button
                             onClick={() => onFeedback(message.id, "down")}
                             className={`p-1.5 rounded transition-colors ${message.feedback === "down"
-                                    ? "text-red-400 bg-red-500/20"
-                                    : "text-gray-500 hover:text-gray-300 hover:bg-gray-700/50"
+                                ? "text-red-400 bg-red-500/20"
+                                : "text-gray-500 hover:text-gray-300 hover:bg-gray-700/50"
                                 }`}
                             title="Poor response"
                         >
@@ -153,11 +158,11 @@ function AnimatedMessage({
                     </div>
                 )}
 
-                {/* Attributions */}
+                {/* Attributions with Multi-Source Support */}
                 {message.attributions && message.attributions.length > 0 && (isComplete || !isLatest) && (
                     <div className="mt-4 pt-4 border-t border-gray-700">
                         <div className="text-xs text-gray-400 mb-2">
-                            📚 Knowledge Sources (Contributors Earned $SAGE)
+                            📚 Knowledge Sources (Multiple Sources)
                         </div>
                         <div className="space-y-2">
                             {message.attributions.map((attr, i) => (
@@ -167,15 +172,32 @@ function AnimatedMessage({
                                 >
                                     <div className="flex items-center gap-2">
                                         <div className="w-6 h-6 bg-gradient-to-r from-emerald-500 to-purple-500 rounded-full flex items-center justify-center text-xs">
-                                            {i + 1}
+                                            {attr.sourceEmoji || (i + 1)}
                                         </div>
                                         <div>
-                                            <div className="text-sm font-medium">{attr.title}</div>
-                                            <div className="text-xs text-gray-500">by {attr.staker}</div>
+                                            <div className="text-sm font-medium flex items-center gap-2">
+                                                {attr.title}
+                                                {attr.verified && <span className="text-emerald-400 text-xs">✓</span>}
+                                            </div>
+                                            <div className="text-xs text-gray-500 flex items-center gap-2">
+                                                <span className={`${attr.source === 'on_chain' ? 'text-emerald-400' :
+                                                    attr.source === 'docs' ? 'text-blue-400' :
+                                                        attr.source === 'github' ? 'text-gray-300' :
+                                                            attr.source === 'moltbook' ? 'text-cyan-400' : 'text-gray-500'}`}>
+                                                    {attr.sourceLabel || 'On-Chain'}
+                                                </span>
+                                                {attr.source === 'on_chain' && <span>• by {attr.staker}</span>}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <div className="badge badge-sage">+{attr.reward} $SAGE</div>
+                                        {attr.reward > 0 ? (
+                                            <div className="badge badge-sage">+{attr.reward} $SAGE</div>
+                                        ) : (
+                                            <div className="text-xs px-2 py-1 bg-gray-700/50 rounded-full text-gray-400">
+                                                External
+                                            </div>
+                                        )}
                                         <div className="text-xs text-gray-500">{attr.relevance}% match</div>
                                     </div>
                                 </div>
@@ -243,8 +265,8 @@ function CategoryFilter({
             <button
                 onClick={() => onSelect(null)}
                 className={`px-3 py-1 rounded-full text-sm transition-colors ${selected === null
-                        ? "bg-purple-500/30 text-white"
-                        : "bg-gray-800/50 text-gray-400 hover:text-white"
+                    ? "bg-purple-500/30 text-white"
+                    : "bg-gray-800/50 text-gray-400 hover:text-white"
                     }`}
             >
                 All
@@ -254,8 +276,8 @@ function CategoryFilter({
                     key={cat}
                     onClick={() => onSelect(cat)}
                     className={`px-3 py-1 rounded-full text-sm transition-colors ${selected === cat
-                            ? "bg-purple-500/30 text-white"
-                            : "bg-gray-800/50 text-gray-400 hover:text-white"
+                        ? "bg-purple-500/30 text-white"
+                        : "bg-gray-800/50 text-gray-400 hover:text-white"
                         }`}
                 >
                     {cat}
@@ -616,8 +638,8 @@ export default function QueryPage() {
                                 onClick={handleVoiceInput}
                                 disabled={isQuerying || isLoadingKnowledge}
                                 className={`p-3 rounded-lg transition-all ${isListening
-                                        ? "bg-red-500/20 text-red-400 animate-pulse"
-                                        : "bg-gray-800/50 text-gray-400 hover:text-white"
+                                    ? "bg-red-500/20 text-red-400 animate-pulse"
+                                    : "bg-gray-800/50 text-gray-400 hover:text-white"
                                     }`}
                                 title="Voice input"
                             >
@@ -641,8 +663,8 @@ export default function QueryPage() {
                                 onClick={() => handleQuery()}
                                 disabled={isQuerying || !query.trim() || isLoadingKnowledge}
                                 className={`btn-primary px-6 ${isQuerying || !query.trim() || isLoadingKnowledge
-                                        ? "opacity-50 cursor-not-allowed"
-                                        : ""
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : ""
                                     }`}
                             >
                                 {isQuerying ? "..." : "Ask"}
