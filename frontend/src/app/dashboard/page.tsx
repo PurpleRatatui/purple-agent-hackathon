@@ -4,12 +4,39 @@ import { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
     fetchKnowledgeEntriesByStaker,
+    fetchAllKnowledgeEntries,
     fetchProtocolState,
     claimRewards,
     getExplorerUrl,
     KnowledgeEntryData,
     ProtocolData,
 } from "@/lib/solsage-program";
+
+// Reputation tiers based on $SAGE earned
+const REPUTATION_TIERS = [
+    { name: "Apprentice", emoji: "🌱", minSage: 0, color: "text-gray-400" },
+    { name: "Scholar", emoji: "📚", minSage: 10, color: "text-blue-400" },
+    { name: "Expert", emoji: "🧙", minSage: 50, color: "text-purple-400" },
+    { name: "Sage Master", emoji: "🌭", minSage: 200, color: "text-emerald-400" },
+];
+
+function getReputationTier(sageEarned: number) {
+    for (let i = REPUTATION_TIERS.length - 1; i >= 0; i--) {
+        if (sageEarned >= REPUTATION_TIERS[i].minSage) {
+            return REPUTATION_TIERS[i];
+        }
+    }
+    return REPUTATION_TIERS[0];
+}
+
+function getNextTier(sageEarned: number) {
+    for (const tier of REPUTATION_TIERS) {
+        if (sageEarned < tier.minSage) {
+            return tier;
+        }
+    }
+    return null;
+}
 
 interface Attribution {
     id: string;
@@ -52,6 +79,7 @@ export default function DashboardPage() {
     const wallet = useWallet();
     const { connected, publicKey } = wallet;
     const [knowledgeEntries, setKnowledgeEntries] = useState<KnowledgeEntryData[]>([]);
+    const [allEntries, setAllEntries] = useState<KnowledgeEntryData[]>([]);
     const [protocolState, setProtocolState] = useState<ProtocolData | null>(null);
     const [attributions] = useState<Attribution[]>(MOCK_ATTRIBUTIONS);
     const [isClaiming, setIsClaiming] = useState(false);
@@ -61,7 +89,7 @@ export default function DashboardPage() {
         explorerUrl?: string;
     } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<"entries" | "attributions">("entries");
+    const [activeTab, setActiveTab] = useState<"entries" | "attributions" | "leaderboard">("entries");
 
     // Fetch data on mount
     const fetchData = useCallback(async () => {
@@ -69,12 +97,14 @@ export default function DashboardPage() {
 
         setIsLoading(true);
         try {
-            const [entries, protocol] = await Promise.all([
+            const [entries, protocol, all] = await Promise.all([
                 fetchKnowledgeEntriesByStaker(publicKey),
                 fetchProtocolState(),
+                fetchAllKnowledgeEntries(),
             ]);
             setKnowledgeEntries(entries);
             setProtocolState(protocol);
+            setAllEntries(all);
         } catch (error) {
             console.error("Error fetching data:", error);
         } finally {
@@ -194,6 +224,9 @@ export default function DashboardPage() {
                             />
                         </div>
 
+                        {/* Reputation Card */}
+                        <ReputationCard sageEarned={totalEarned} />
+
                         {/* Protocol Stats */}
                         {protocolState && (
                             <div className="mb-8 p-4 glass rounded-xl">
@@ -210,8 +243,8 @@ export default function DashboardPage() {
                         {claimResult && (
                             <div
                                 className={`mb-6 p-4 rounded-xl ${claimResult.success
-                                        ? "bg-emerald-500/20 border border-emerald-500/50"
-                                        : "bg-red-500/20 border border-red-500/50"
+                                    ? "bg-emerald-500/20 border border-emerald-500/50"
+                                    : "bg-red-500/20 border border-red-500/50"
                                     }`}
                             >
                                 <div className="flex items-center gap-3">
@@ -236,20 +269,29 @@ export default function DashboardPage() {
                             <button
                                 onClick={() => setActiveTab("entries")}
                                 className={`px-4 py-2 rounded-lg transition-all ${activeTab === "entries"
-                                        ? "bg-purple-500/30 text-white"
-                                        : "bg-gray-800/50 text-gray-400 hover:text-white"
+                                    ? "bg-purple-500/30 text-white"
+                                    : "bg-gray-800/50 text-gray-400 hover:text-white"
                                     }`}
                             >
-                                Knowledge Entries ({knowledgeEntries.length})
+                                Knowledge ({knowledgeEntries.length})
                             </button>
                             <button
                                 onClick={() => setActiveTab("attributions")}
                                 className={`px-4 py-2 rounded-lg transition-all ${activeTab === "attributions"
-                                        ? "bg-purple-500/30 text-white"
-                                        : "bg-gray-800/50 text-gray-400 hover:text-white"
+                                    ? "bg-purple-500/30 text-white"
+                                    : "bg-gray-800/50 text-gray-400 hover:text-white"
                                     }`}
                             >
                                 Recent Attributions ({attributions.length})
+                            </button>
+                            <button
+                                onClick={() => setActiveTab("leaderboard")}
+                                className={`px-4 py-2 rounded-lg transition-all ${activeTab === "leaderboard"
+                                    ? "bg-purple-500/30 text-white"
+                                    : "bg-gray-800/50 text-gray-400 hover:text-white"
+                                    }`}
+                            >
+                                🏆 Leaderboard
                             </button>
                         </div>
 
@@ -335,8 +377,8 @@ export default function DashboardPage() {
                                                 <td className="p-4 text-gray-400 text-sm">{attr.knowledgeTitle}</td>
                                                 <td className="p-4 text-center">
                                                     <span className={`px-2 py-1 rounded text-xs ${attr.relevance >= 80 ? "bg-emerald-500/20 text-emerald-400" :
-                                                            attr.relevance >= 60 ? "bg-yellow-500/20 text-yellow-400" :
-                                                                "bg-gray-500/20 text-gray-400"
+                                                        attr.relevance >= 60 ? "bg-yellow-500/20 text-yellow-400" :
+                                                            "bg-gray-500/20 text-gray-400"
                                                         }`}>
                                                         {attr.relevance}%
                                                     </span>
@@ -350,6 +392,11 @@ export default function DashboardPage() {
                                     </tbody>
                                 </table>
                             </div>
+                        )}
+
+                        {/* Leaderboard Tab */}
+                        {activeTab === "leaderboard" && (
+                            <Leaderboard entries={allEntries} />
                         )}
                     </>
                 )}
@@ -391,4 +438,134 @@ function formatTimeAgo(date: Date): string {
     if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
     return `${days}d ago`;
+}
+
+function ReputationCard({ sageEarned }: { sageEarned: number }) {
+    const tier = getReputationTier(sageEarned);
+    const nextTier = getNextTier(sageEarned);
+    const progress = nextTier
+        ? ((sageEarned - tier.minSage) / (nextTier.minSage - tier.minSage)) * 100
+        : 100;
+
+    return (
+        <div className="mb-8 glass rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Your Reputation</h3>
+                <div className="flex items-center gap-2">
+                    <span className={`text-2xl ${tier.color}`}>{tier.emoji}</span>
+                    <span className={`font-bold ${tier.color}`}>{tier.name}</span>
+                </div>
+            </div>
+
+            {/* Progress to next tier */}
+            {nextTier && (
+                <div className="mb-4">
+                    <div className="flex justify-between text-sm text-gray-400 mb-1">
+                        <span>{sageEarned} $SAGE</span>
+                        <span>{nextTier.minSage} $SAGE to {nextTier.name}</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                        <div
+                            className="gradient-sage h-2 rounded-full transition-all"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* All tiers display */}
+            <div className="flex justify-between gap-2">
+                {REPUTATION_TIERS.map((t) => (
+                    <div
+                        key={t.name}
+                        className={`flex-1 text-center p-2 rounded-lg ${t.name === tier.name
+                            ? 'bg-purple-500/20 ring-1 ring-purple-500/50'
+                            : 'bg-gray-800/50'
+                            }`}
+                    >
+                        <div className="text-lg">{t.emoji}</div>
+                        <div className={`text-xs ${t.name === tier.name ? t.color : 'text-gray-500'}`}>
+                            {t.name}
+                        </div>
+                        <div className="text-xs text-gray-500">{t.minSage}+</div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function Leaderboard({ entries }: { entries: KnowledgeEntryData[] }) {
+    // Aggregate by staker
+    const stakerStats = new Map<string, { total: number; count: number }>();
+
+    entries.forEach(entry => {
+        const staker = entry.staker.toBase58();
+        const current = stakerStats.get(staker) || { total: 0, count: 0 };
+        stakerStats.set(staker, {
+            total: current.total + entry.totalAttributions,
+            count: current.count + 1,
+        });
+    });
+
+    // Convert to array and sort by attributions
+    const leaderboard = Array.from(stakerStats.entries())
+        .map(([address, stats]) => ({
+            address,
+            attributions: stats.total,
+            entries: stats.count,
+            sageEarned: stats.total * 10, // 10 SAGE per attribution (mock)
+        }))
+        .sort((a, b) => b.sageEarned - a.sageEarned)
+        .slice(0, 10);
+
+    return (
+        <div className="glass rounded-2xl overflow-hidden">
+            <table className="w-full">
+                <thead>
+                    <tr className="border-b border-gray-700">
+                        <th className="text-left p-4 text-gray-400 font-medium">Rank</th>
+                        <th className="text-left p-4 text-gray-400 font-medium">Contributor</th>
+                        <th className="text-center p-4 text-gray-400 font-medium">Entries</th>
+                        <th className="text-center p-4 text-gray-400 font-medium">Attributions</th>
+                        <th className="text-right p-4 text-gray-400 font-medium">$SAGE Earned</th>
+                        <th className="text-right p-4 text-gray-400 font-medium">Tier</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {leaderboard.map((entry, idx) => {
+                        const tier = getReputationTier(entry.sageEarned);
+                        return (
+                            <tr key={entry.address} className="border-b border-gray-700/50 hover:bg-gray-800/30">
+                                <td className="p-4">
+                                    {idx === 0 && <span className="text-xl">🥇</span>}
+                                    {idx === 1 && <span className="text-xl">🥈</span>}
+                                    {idx === 2 && <span className="text-xl">🥉</span>}
+                                    {idx > 2 && <span className="text-gray-500">#{idx + 1}</span>}
+                                </td>
+                                <td className="p-4">
+                                    <span className="font-mono text-sm">
+                                        {entry.address.slice(0, 4)}...{entry.address.slice(-4)}
+                                    </span>
+                                </td>
+                                <td className="p-4 text-center">{entry.entries}</td>
+                                <td className="p-4 text-center">{entry.attributions}</td>
+                                <td className="p-4 text-right text-emerald-400">{entry.sageEarned}</td>
+                                <td className="p-4 text-right">
+                                    <span className={tier.color}>{tier.emoji} {tier.name}</span>
+                                </td>
+                            </tr>
+                        );
+                    })}
+                    {leaderboard.length === 0 && (
+                        <tr>
+                            <td colSpan={6} className="p-8 text-center text-gray-400">
+                                No contributors yet. Be the first to stake knowledge!
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+        </div>
+    );
 }
