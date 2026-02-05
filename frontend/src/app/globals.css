@@ -185,6 +185,36 @@ body {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
+@keyframes progress {
+  0% {
+    width: 0%;
+    margin-left: 0%;
+  }
+
+  50% {
+    width: 50%;
+    margin-left: 25%;
+  }
+
+  100% {
+    width: 0%;
+    margin-left: 100%;
+  }
+}
+
+.animate-progress {
+  animation: progress 1.5s ease-in-out infinite;
+}
+
+/* Bounce delay animations */
+.delay-100 {
+  animation-delay: 0.1s;
+}
+
+.delay-200 {
+  animation-delay: 0.2s;
+}
+
 /* Wallet Button Override */
 .wallet-adapter-button {
   background: linear-gradient(135deg, var(--color-sage) 0%, var(--color-primary) 100%) !important;
