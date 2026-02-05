@@ -14,47 +14,98 @@ interface Attribution {
     reward: number;
 }
 
-// Simple keyword-based matching score
+// More sophisticated keyword matching with exact and partial match scoring
 function calculateRelevance(query: string, entry: KnowledgeEntry): number {
-    const queryWords = query.toLowerCase().split(/\s+/);
-    const titleWords = entry.title.toLowerCase().split(/\s+/);
-    const contentWords = entry.content.toLowerCase().split(/\s+/);
+    const queryLower = query.toLowerCase();
+    const titleLower = entry.title.toLowerCase();
+    const contentLower = entry.content.toLowerCase();
+    const categoryLower = entry.category.toLowerCase();
 
-    let matches = 0;
-    let totalWeight = 0;
+    let score = 0;
 
-    for (const word of queryWords) {
-        if (word.length < 3) continue; // Skip short words
+    // Extract meaningful words (3+ chars, no common words)
+    const stopWords = ['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'has', 'what', 'how', 'why', 'when', 'where', 'who', 'which', 'this', 'that', 'with', 'from', 'have', 'been', 'will', 'would', 'could', 'should', 'about', 'into', 'your', 'does', 'know', 'tell', 'about'];
+    const queryWords = queryLower.split(/\s+/).filter(w => w.length >= 3 && !stopWords.includes(w));
 
-        // Title matches are worth more
-        if (titleWords.some(w => w.includes(word) || word.includes(w))) {
-            matches += 3;
-        }
-        // Content matches
-        if (contentWords.some(w => w.includes(word) || word.includes(w))) {
-            matches += 1;
-        }
-        totalWeight += 4;
+    if (queryWords.length === 0) return 0;
+
+    // Check for exact phrase match in title (highest weight)
+    if (titleLower.includes(queryLower)) {
+        score += 50;
     }
 
-    if (totalWeight === 0) return 0;
-    return Math.min(95, Math.round((matches / totalWeight) * 100));
+    // Check each query word
+    let matchedWords = 0;
+    for (const word of queryWords) {
+        // Exact word match in title
+        if (titleLower.includes(word)) {
+            score += 15;
+            matchedWords++;
+        }
+        // Exact word match in category
+        if (categoryLower.includes(word)) {
+            score += 10;
+            matchedWords++;
+        }
+        // Exact word match in content
+        if (contentLower.includes(word)) {
+            score += 5;
+            matchedWords++;
+        }
+    }
+
+    // Require at least one meaningful word to match
+    if (matchedWords === 0) {
+        return 0;
+    }
+
+    // Coverage bonus - what percentage of query words matched?
+    const coverage = matchedWords / queryWords.length;
+    score = Math.round(score * coverage);
+
+    return Math.min(95, score);
 }
 
-// Generate response using the matched knowledge
+// Generate intelligent response based on matches (or lack thereof)
 function generateResponse(query: string, matches: { entry: KnowledgeEntry; relevance: number }[]): string {
+    // No good matches found
     if (matches.length === 0) {
-        return `I don't have specific knowledge about that yet. The SolSage knowledge base is growing as more contributors stake their expertise.\n\nWant to be the first to contribute knowledge on this topic? Head to the Stake page and share your expertise!`;
+        return `🤔 I don't have specific knowledge about "${query}" yet.
+
+The SolSage knowledge base is still growing! Here's what you can do:
+
+• **Be the first to contribute** - Head to the Stake page and share your expertise on this topic
+• **Try different keywords** - Rephrase your question with related terms
+• **Browse existing knowledge** - Check the Dashboard to see what topics are covered
+
+The more experts stake their knowledge, the smarter I become! 🌭`;
     }
 
-    // Build context from matched knowledge
-    const context = matches.map(m => `**${m.entry.title}** (${m.entry.category}):\n${m.entry.content}`).join('\n\n---\n\n');
+    // Build response from matched knowledge
+    const topMatch = matches[0];
 
-    const intro = matches.length === 1
-        ? `Based on knowledge staked by the community, here's what I found:`
-        : `I found ${matches.length} relevant knowledge entries from our contributors:`;
+    if (matches.length === 1) {
+        return `Based on community knowledge, here's what I found about your question:
 
-    return `${intro}\n\n${context}\n\n---\n*This response was generated using knowledge staked on SolSage. Contributors have been attributed and will receive $SAGE rewards.*`;
+📚 **${topMatch.entry.title}** (${topMatch.entry.category})
+
+${topMatch.entry.content}
+
+---
+*Relevance: ${topMatch.relevance}% match. The contributor has been attributed $SAGE rewards.*`;
+    }
+
+    // Multiple matches
+    let response = `I found ${matches.length} relevant knowledge entries:\n\n`;
+
+    matches.forEach((m, i) => {
+        response += `**${i + 1}. ${m.entry.title}** (${m.entry.category})\n`;
+        response += `${m.entry.content}\n\n`;
+    });
+
+    response += `---\n*All contributors have been attributed and will receive $SAGE rewards.*`;
+
+    return response;
 }
 
 export async function POST(request: NextRequest) {
@@ -67,31 +118,32 @@ export async function POST(request: NextRequest) {
 
         const entries: KnowledgeEntry[] = knowledgeEntries || [];
 
-        // Calculate relevance for each entry
+        // Calculate relevance for each entry with HIGHER threshold
         const scoredEntries = entries
             .map(entry => ({
                 entry,
                 relevance: calculateRelevance(query, entry)
             }))
-            .filter(e => e.relevance > 20) // Minimum threshold
+            .filter(e => e.relevance >= 30) // HIGHER threshold - need 30%+ to match
             .sort((a, b) => b.relevance - a.relevance)
             .slice(0, 3); // Top 3 matches
 
-        // Generate attributions
+        // Generate attributions only for real matches
         const attributions: Attribution[] = scoredEntries.map((e, i) => ({
             staker: e.entry.staker,
             title: e.entry.title,
             relevance: e.relevance,
-            reward: Math.max(1, Math.floor(e.relevance / 10) - i) // Decreasing rewards
+            reward: Math.max(1, Math.floor(e.relevance / 15) - i) // More proportional rewards
         }));
 
-        // Generate response
+        // Generate appropriate response
         const answer = generateResponse(query, scoredEntries);
 
         return NextResponse.json({
             answer,
             attributions,
-            matchedCount: scoredEntries.length
+            matchedCount: scoredEntries.length,
+            hasMatches: scoredEntries.length > 0
         });
 
     } catch (error) {
