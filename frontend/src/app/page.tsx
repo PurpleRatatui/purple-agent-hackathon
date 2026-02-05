@@ -2,9 +2,37 @@
 
 import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useState, useEffect } from "react";
+import { fetchProtocolState, fetchAllKnowledgeEntries } from "@/lib/solsage-program";
 
 export default function Home() {
   const { connected } = useWallet();
+  const [stats, setStats] = useState({
+    totalEntries: 0,
+    totalAttributions: 0,
+    sageDistributed: 0
+  });
+
+  // Fetch live protocol stats
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const [protocolData, entries] = await Promise.all([
+          fetchProtocolState(),
+          fetchAllKnowledgeEntries()
+        ]);
+
+        setStats({
+          totalEntries: entries.length,
+          totalAttributions: protocolData?.totalAttributions || 0,
+          sageDistributed: (protocolData?.totalAttributions || 0) * (protocolData?.rewardPerAttribution || 0) / 1_000_000_000
+        });
+      } catch (error) {
+        console.error("Failed to load stats:", error);
+      }
+    }
+    loadStats();
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -50,10 +78,10 @@ export default function Home() {
 
             {/* Stats */}
             <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8">
-              <Stat value="∞" label="Knowledge Staked" />
-              <Stat value="∞" label="Attributions" />
-              <Stat value="∞" label="$SAGE Distributed" />
-              <Stat value="∞" label="Contributors" />
+              <Stat value={stats.totalEntries > 0 ? stats.totalEntries.toString() : "—"} label="Knowledge Staked" />
+              <Stat value={stats.totalAttributions > 0 ? stats.totalAttributions.toString() : "—"} label="Attributions" />
+              <Stat value={stats.sageDistributed > 0 ? stats.sageDistributed.toFixed(2) : "—"} label="$SAGE Distributed" />
+              <Stat value="∞" label="Potential" />
             </div>
           </div>
         </div>
@@ -151,6 +179,45 @@ export default function Home() {
                 Connect your wallet to get started
               </p>
             )}
+          </div>
+        </div>
+      </section>
+
+      {/* Getting Started Guide */}
+      <section className="py-16 relative">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold text-center mb-8">
+            🚀 Quick Start Guide
+          </h2>
+          <div className="glass rounded-xl p-6 space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-full bg-purple-500/30 flex items-center justify-center flex-shrink-0">1</div>
+              <div>
+                <h3 className="font-semibold">Get a Phantom Wallet</h3>
+                <p className="text-gray-400 text-sm">Download from <a href="https://phantom.app" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">phantom.app</a> if you don't have one</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-full bg-purple-500/30 flex items-center justify-center flex-shrink-0">2</div>
+              <div>
+                <h3 className="font-semibold">Switch to Devnet</h3>
+                <p className="text-gray-400 text-sm">Settings → Developer Settings → Change Network → Devnet</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-full bg-purple-500/30 flex items-center justify-center flex-shrink-0">3</div>
+              <div>
+                <h3 className="font-semibold">Get Free Devnet SOL</h3>
+                <p className="text-gray-400 text-sm">Visit <a href="https://faucet.solana.com" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">faucet.solana.com</a> and request SOL for transaction fees</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-full bg-emerald-500/30 flex items-center justify-center flex-shrink-0">✓</div>
+              <div>
+                <h3 className="font-semibold text-emerald-400">Ready to Go!</h3>
+                <p className="text-gray-400 text-sm">Connect your wallet and start staking knowledge</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>

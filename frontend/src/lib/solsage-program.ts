@@ -398,6 +398,71 @@ export async function fetchKnowledgeEntriesByStaker(
     }
 }
 
+// Fetch ALL knowledge entries (for RAG system)
+export async function fetchAllKnowledgeEntries(): Promise<KnowledgeEntryData[]> {
+    try {
+        // Get all program accounts of the knowledge entry size
+        const accounts = await connection.getProgramAccounts(SOLSAGE_PROGRAM_ID, {
+            filters: [
+                // Filter by account size (knowledge entry size)
+                { dataSize: 8 + 32 + 32 + 4 + 100 + 4 + 50 + 8 + 8 + 8 + 1 + 1 },
+            ],
+        });
+
+        return accounts.map(({ account }) => {
+            const data = account.data;
+            let offset = 8;
+
+            const stakerPubkey = new PublicKey(data.slice(offset, offset + 32));
+            offset += 32;
+
+            const contentHash = new Uint8Array(data.slice(offset, offset + 32));
+            offset += 32;
+
+            // Read title (4-byte length + string)
+            const titleLen = data.readUInt32LE(offset);
+            offset += 4;
+            const title = data.slice(offset, offset + titleLen).toString('utf8');
+            offset += titleLen;
+
+            // Read category (4-byte length + string)
+            const categoryLen = data.readUInt32LE(offset);
+            offset += 4;
+            const category = data.slice(offset, offset + categoryLen).toString('utf8');
+            offset += categoryLen;
+
+            const createdAt = Number(data.readBigInt64LE(offset));
+            offset += 8;
+
+            const totalAttributions = Number(data.readBigUInt64LE(offset));
+            offset += 8;
+
+            const pendingRewards = Number(data.readBigUInt64LE(offset));
+            offset += 8;
+
+            const isActive = data[offset] === 1;
+            offset += 1;
+
+            const bump = data[offset];
+
+            return {
+                staker: stakerPubkey,
+                contentHash,
+                title,
+                category,
+                createdAt,
+                totalAttributions,
+                pendingRewards,
+                isActive,
+                bump,
+            };
+        });
+    } catch (error) {
+        console.error('Error fetching all knowledge entries:', error);
+        return [];
+    }
+}
+
 // Get Solana Explorer URL for a transaction
 export function getExplorerUrl(signature: string): string {
     return `https://explorer.solana.com/tx/${signature}?cluster=devnet`;

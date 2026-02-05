@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { fetchAllKnowledgeEntries, KnowledgeEntryData } from "@/lib/solsage-program";
 
 interface Attribution {
     staker: string;
@@ -9,37 +10,37 @@ interface Attribution {
     reward: number;
 }
 
-interface QueryResult {
-    answer: string;
-    attributions: Attribution[];
+interface Message {
+    role: "user" | "sage";
+    content: string;
+    attributions?: Attribution[];
 }
-
-// Mock knowledge database for demo
-const MOCK_KNOWLEDGE = [
-    {
-        staker: "8xDf...3Kp2",
-        title: "How to swap tokens on Jupiter",
-        content: "Jupiter aggregates liquidity across Solana DEXs. Use the SDK: import { Jupiter } from '@jup-ag/core'; const jupiter = Jupiter.load({...})",
-    },
-    {
-        staker: "4mNz...9Wq5",
-        title: "Understanding Solana PDAs",
-        content: "PDAs (Program Derived Addresses) are keyless accounts controlled by programs. Use Pubkey.findProgramAddress() to derive them.",
-    },
-    {
-        staker: "7pRt...1Xy8",
-        title: "SPL Token basics",
-        content: "SPL tokens are Solana's token standard. Each token has a mint address and token accounts hold balances.",
-    },
-];
 
 export default function QueryPage() {
     const [query, setQuery] = useState("");
     const [isQuerying, setIsQuerying] = useState(false);
-    const [result, setResult] = useState<QueryResult | null>(null);
-    const [messages, setMessages] = useState<
-        { role: "user" | "sage"; content: string; attributions?: Attribution[] }[]
-    >([]);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeEntryData[]>([]);
+    const [isLoadingKnowledge, setIsLoadingKnowledge] = useState(true);
+    const [knowledgeCount, setKnowledgeCount] = useState(0);
+
+    // Fetch all knowledge entries on page load
+    useEffect(() => {
+        async function loadKnowledgeBase() {
+            setIsLoadingKnowledge(true);
+            try {
+                const entries = await fetchAllKnowledgeEntries();
+                setKnowledgeBase(entries);
+                setKnowledgeCount(entries.length);
+                console.log(`Loaded ${entries.length} knowledge entries from chain`);
+            } catch (error) {
+                console.error("Failed to load knowledge base:", error);
+            } finally {
+                setIsLoadingKnowledge(false);
+            }
+        }
+        loadKnowledgeBase();
+    }, []);
 
     const handleQuery = async () => {
         if (!query.trim()) return;
@@ -50,33 +51,40 @@ export default function QueryPage() {
         setIsQuerying(true);
 
         try {
-            // Simulate AI query with attributions
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-
-            // Find relevant knowledge (mock matching)
-            const relevantKnowledge = MOCK_KNOWLEDGE.filter(
-                (k) =>
-                    userMessage.toLowerCase().includes("swap") ||
-                    userMessage.toLowerCase().includes("jupiter") ||
-                    userMessage.toLowerCase().includes("pda") ||
-                    userMessage.toLowerCase().includes("token")
-            );
-
-            // Generate mock response with attributions
-            const attributions: Attribution[] = relevantKnowledge.slice(0, 2).map((k, i) => ({
-                staker: k.staker,
-                title: k.title,
-                relevance: 85 - i * 15,
-                reward: Math.floor((85 - i * 15) / 10),
+            // Convert knowledge entries to the format expected by the API
+            const knowledgeForApi = knowledgeBase.map(entry => ({
+                staker: entry.staker.toBase58().slice(0, 4) + "..." + entry.staker.toBase58().slice(-4),
+                title: entry.title,
+                content: entry.title + " - " + entry.category, // Use title + category as content
+                category: entry.category,
             }));
 
-            const answer = generateMockAnswer(userMessage, relevantKnowledge);
+            // Call the RAG API
+            const response = await fetch("/api/query", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    query: userMessage,
+                    knowledgeEntries: knowledgeForApi,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error("Query failed");
+            }
+
+            const result = await response.json();
 
             setMessages((prev) => [
                 ...prev,
-                { role: "sage", content: answer, attributions },
+                {
+                    role: "sage",
+                    content: result.answer,
+                    attributions: result.attributions,
+                },
             ]);
         } catch (error) {
+            console.error("Query error:", error);
             setMessages((prev) => [
                 ...prev,
                 {
@@ -100,6 +108,21 @@ export default function QueryPage() {
                     <p className="text-gray-400">
                         Query the collective knowledge. Contributors get attributed and paid.
                     </p>
+
+                    {/* Knowledge Base Status */}
+                    <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-gray-800/50 rounded-full text-sm">
+                        {isLoadingKnowledge ? (
+                            <>
+                                <span className="animate-pulse">⏳</span>
+                                <span className="text-gray-400">Loading knowledge base...</span>
+                            </>
+                        ) : (
+                            <>
+                                <span className="text-emerald-400">✓</span>
+                                <span className="text-gray-400">{knowledgeCount} knowledge entries on-chain</span>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {/* Chat Container */}
@@ -110,11 +133,14 @@ export default function QueryPage() {
                             <div className="text-center text-gray-500 py-12">
                                 <div className="text-5xl mb-4">🌭</div>
                                 <p>Ask me anything about Solana, DeFi, or crypto development!</p>
+                                <p className="text-sm mt-2 text-gray-600">
+                                    Responses are sourced from knowledge staked by the community
+                                </p>
                                 <div className="mt-6 flex flex-wrap justify-center gap-2">
                                     {[
-                                        "How do I swap tokens on Jupiter?",
-                                        "Explain Solana PDAs",
-                                        "What are SPL tokens?",
+                                        "What knowledge is available?",
+                                        "Tell me about crypto",
+                                        "How does staking work?",
                                     ].map((suggestion) => (
                                         <button
                                             key={suggestion}
@@ -136,8 +162,8 @@ export default function QueryPage() {
                             >
                                 <div
                                     className={`max-w-[80%] ${message.role === "user"
-                                            ? "bg-purple-500/20 border border-purple-500/30 rounded-2xl rounded-tr-sm"
-                                            : "bg-gray-800/50 border border-gray-700 rounded-2xl rounded-tl-sm"
+                                        ? "bg-purple-500/20 border border-purple-500/30 rounded-2xl rounded-tr-sm"
+                                        : "bg-gray-800/50 border border-gray-700 rounded-2xl rounded-tl-sm"
                                         } p-4`}
                                 >
                                     {message.role === "sage" && (
@@ -197,7 +223,7 @@ export default function QueryPage() {
                                 <div className="bg-gray-800/50 border border-gray-700 rounded-2xl rounded-tl-sm p-4">
                                     <div className="flex items-center gap-2">
                                         <span className="text-lg animate-pulse">🌭</span>
-                                        <span className="text-gray-400">Thinking...</span>
+                                        <span className="text-gray-400">Searching knowledge base...</span>
                                     </div>
                                 </div>
                             </div>
@@ -218,14 +244,14 @@ export default function QueryPage() {
                                         handleQuery();
                                     }
                                 }}
-                                disabled={isQuerying}
+                                disabled={isQuerying || isLoadingKnowledge}
                             />
                             <button
                                 onClick={handleQuery}
-                                disabled={isQuerying || !query.trim()}
-                                className={`btn-primary px-6 ${isQuerying || !query.trim()
-                                        ? "opacity-50 cursor-not-allowed"
-                                        : ""
+                                disabled={isQuerying || !query.trim() || isLoadingKnowledge}
+                                className={`btn-primary px-6 ${isQuerying || !query.trim() || isLoadingKnowledge
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : ""
                                     }`}
                             >
                                 {isQuerying ? "..." : "Ask"}
@@ -244,81 +270,4 @@ export default function QueryPage() {
             </div>
         </div>
     );
-}
-
-function generateMockAnswer(query: string, knowledge: typeof MOCK_KNOWLEDGE): string {
-    const lowerQuery = query.toLowerCase();
-
-    if (lowerQuery.includes("swap") || lowerQuery.includes("jupiter")) {
-        return `To swap tokens on Jupiter:
-
-1. **Connect your wallet** to Jupiter (jup.ag)
-2. **Select tokens** - Choose the token you want to swap from/to
-3. **Enter amount** - Jupiter will show you the best route
-4. **Review the route** - It aggregates across multiple DEXs for best price
-5. **Confirm the swap** - Approve the transaction in your wallet
-
-For programmatic swaps, use the Jupiter SDK:
-\`\`\`typescript
-import { Jupiter } from '@jup-ag/core';
-const jupiter = await Jupiter.load({
-  connection,
-  cluster: 'mainnet-beta',
-  user: wallet.publicKey,
-});
-const routes = await jupiter.computeRoutes({
-  inputMint,
-  outputMint,
-  amount,
-});
-\`\`\``;
-    }
-
-    if (lowerQuery.includes("pda")) {
-        return `**Program Derived Addresses (PDAs)** are special Solana accounts:
-
-✅ **What are PDAs?**
-- Accounts controlled by programs, not private keys
-- Derived deterministically from seeds + program ID
-- Used for storing program state securely
-
-✅ **How to derive a PDA:**
-\`\`\`typescript
-const [pda, bump] = await PublicKey.findProgramAddress(
-  [Buffer.from("seed"), user.toBuffer()],
-  programId
-);
-\`\`\`
-
-✅ **Common uses:**
-- User-specific data storage
-- Protocol treasuries
-- Escrow accounts`;
-    }
-
-    if (lowerQuery.includes("token") || lowerQuery.includes("spl")) {
-        return `**SPL Tokens** are Solana's token standard:
-
-🪙 **Key Concepts:**
-- **Mint** - The token's unique identifier (like a contract address)
-- **Token Account** - Holds a user's balance of a specific token
-- **Associated Token Account (ATA)** - Deterministic address per user/mint pair
-
-📝 **Creating tokens:**
-\`\`\`bash
-spl-token create-token  # Creates new mint
-spl-token create-account <MINT>  # Creates token account
-spl-token mint <MINT> <AMOUNT>  # Mints tokens
-\`\`\``;
-    }
-
-    return `Great question! Here's what I know based on the collective wisdom of SolSage contributors:
-
-The Solana ecosystem offers powerful tools for building decentralized applications. Key concepts include:
-
-• **Programs** - Smart contracts on Solana
-• **Accounts** - Storage units for data
-• **Transactions** - Atomic operations with instructions
-
-Would you like me to elaborate on any specific aspect?`;
 }
