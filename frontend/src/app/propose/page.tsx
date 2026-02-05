@@ -241,18 +241,17 @@ export default function ProposePage() {
 
                         {/* Step indicators */}
                         <div className="grid grid-cols-4 gap-2 text-center text-sm">
-                            <div className={submitStep === "depositing" ? "text-purple-400" :
-                                submitStep === "idle" ? "text-gray-500" : "text-emerald-400"}>
+                            <div className={submitStep === "depositing" ? "text-purple-400" : "text-emerald-400"}>
                                 {submitStep === "depositing" ? "⏳" :
                                     ["evaluating", "staking", "complete"].includes(submitStep) ? "✓" : "○"} Deposit
                             </div>
                             <div className={submitStep === "evaluating" ? "text-purple-400" :
-                                ["depositing", "idle"].includes(submitStep) ? "text-gray-500" : "text-emerald-400"}>
+                                submitStep === "depositing" ? "text-gray-500" : "text-emerald-400"}>
                                 {submitStep === "evaluating" ? "⏳" :
                                     ["staking", "complete"].includes(submitStep) ? "✓" : "○"} Evaluate
                             </div>
                             <div className={submitStep === "staking" ? "text-purple-400" :
-                                ["depositing", "evaluating", "idle"].includes(submitStep) ? "text-gray-500" : "text-emerald-400"}>
+                                ["depositing", "evaluating"].includes(submitStep) ? "text-gray-500" : "text-emerald-400"}>
                                 {submitStep === "staking" ? "⏳" :
                                     submitStep === "complete" ? "✓" : "○"} Stake
                             </div>
