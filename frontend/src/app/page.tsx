@@ -243,13 +243,17 @@ export default function Home() {
 }
 
 function Stat({ value, label }: { value: string; label: string }) {
+  const isLoading = value === "—";
   return (
-    <div className="text-center">
-      <div className="text-3xl md:text-4xl font-bold gradient-text">{value}</div>
-      <div className="text-sm text-gray-400">{label}</div>
+    <div className="text-center group">
+      <div className={`text-3xl md:text-4xl font-bold mb-1 ${isLoading ? 'animate-pulse text-gray-600' : 'gradient-text'}`}>
+        {value}
+      </div>
+      <div className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">{label}</div>
     </div>
   );
 }
+
 
 function StepCard({
   step,
