@@ -11,6 +11,7 @@ const navItems = [
     { href: "/propose", label: "Propose", icon: "📝" },
     { href: "/query", label: "Ask the Sage", icon: "🔮" },
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
+    { href: "/docs", label: "API Docs", icon: "📄" },
 ];
 
 export function Navbar() {
