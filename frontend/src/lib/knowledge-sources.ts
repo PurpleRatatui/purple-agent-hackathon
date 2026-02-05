@@ -1,6 +1,8 @@
 // Knowledge Source Types and Aggregation
 // Defines the multi-source knowledge system for SolSage
 
+import { getSolanaKnowledge, convertMoltbookToKnowledge, isMoltbookConfigured } from './moltbook-api';
+
 export type KnowledgeSource =
     | "on_chain"      // Staked knowledge on SolSage program
     | "moltbook"      // From Moltbook AI agent network
@@ -66,10 +68,22 @@ export interface AggregationResult {
     processingTime: number;
 }
 
-// Mock external sources (for demo - in production these would be real API calls)
-
+// Fetch from Moltbook AI (real API when configured, mock fallback)
 export async function fetchMoltbookKnowledge(query: string): Promise<SourcedKnowledge[]> {
-    // Simulated Moltbook AI knowledge
+    // Try real Moltbook API first
+    if (isMoltbookConfigured()) {
+        try {
+            const posts = await getSolanaKnowledge(query);
+            if (posts.length > 0) {
+                console.log(`[Moltbook] Found ${posts.length} posts for query: ${query}`);
+                return convertMoltbookToKnowledge(posts);
+            }
+        } catch (error) {
+            console.error("[Moltbook] API error, falling back to mock:", error);
+        }
+    }
+
+    // Fallback to mock data for demo
     const mockMoltbookData: SourcedKnowledge[] = [
         {
             id: "moltbook-1",
@@ -93,12 +107,13 @@ export async function fetchMoltbookKnowledge(query: string): Promise<SourcedKnow
         },
     ];
 
-    // Filter based on query relevance (simple keyword match for demo)
+    // Filter based on query relevance
     return mockMoltbookData.filter(k =>
         k.title.toLowerCase().includes(query.toLowerCase()) ||
         k.content.toLowerCase().includes(query.toLowerCase())
     );
 }
+
 
 export async function fetchGithubKnowledge(query: string): Promise<SourcedKnowledge[]> {
     // Simulated GitHub-sourced knowledge
