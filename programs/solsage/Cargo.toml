@@ -1,0 +1,20 @@
+[package]
+name = "solsage"
+version = "0.1.0"
+description = "SolSage - Knowledge Attribution Protocol on Solana"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "solsage"
+
+[features]
+no-entrypoint = []
+default = []
+
+[dependencies]
+solana-program = "=1.18.0"
+borsh = "0.10"
+borsh-derive = "0.10"
+thiserror = "1.0"
+constant_time_eq.workspace = true
