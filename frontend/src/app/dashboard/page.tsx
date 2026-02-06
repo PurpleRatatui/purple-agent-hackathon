@@ -303,7 +303,7 @@ export default function DashboardPage() {
                                         <div className="text-4xl mb-4">📝</div>
                                         <p>You haven&apos;t staked any knowledge yet.</p>
                                         <a
-                                            href="/stake"
+                                            href="/propose"
                                             className="inline-block mt-4 btn-primary"
                                         >
                                             Stake Knowledge →

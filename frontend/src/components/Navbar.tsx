@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { WalletButton } from "./WalletButton";
 
 const navItems = [
-    { href: "/stake", label: "Stake" },
     { href: "/propose", label: "Propose" },
     { href: "/query", label: "Query" },
     { href: "/dashboard", label: "Dashboard" },
@@ -44,8 +43,8 @@ export function Navbar() {
                                         key={item.href}
                                         href={item.href}
                                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${pathname === item.href
-                                                ? "bg-white text-gray-900"
-                                                : "text-gray-400 hover:text-white"
+                                            ? "bg-white text-gray-900"
+                                            : "text-gray-400 hover:text-white"
                                             }`}
                                     >
                                         {item.label}
@@ -124,8 +123,8 @@ export function Navbar() {
                             href="/"
                             onClick={() => setIsMenuOpen(false)}
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${pathname === "/"
-                                    ? "bg-white/10 text-white"
-                                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                                ? "bg-white/10 text-white"
+                                : "text-gray-400 hover:text-white hover:bg-white/5"
                                 }`}
                         >
                             <span className="text-lg">🏠</span>
@@ -133,8 +132,7 @@ export function Navbar() {
                         </Link>
                         {navItems.map((item) => {
                             const icons: Record<string, string> = {
-                                "/stake": "📚",
-                                "/propose": "📝",
+                                "/propose": "🌭",
                                 "/query": "🔮",
                                 "/dashboard": "📊",
                                 "/docs": "📄"
@@ -145,8 +143,8 @@ export function Navbar() {
                                     href={item.href}
                                     onClick={() => setIsMenuOpen(false)}
                                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${pathname === item.href
-                                            ? "bg-white/10 text-white"
-                                            : "text-gray-400 hover:text-white hover:bg-white/5"
+                                        ? "bg-white/10 text-white"
+                                        : "text-gray-400 hover:text-white hover:bg-white/5"
                                         }`}
                                 >
                                     <span className="text-lg">{icons[item.href] || "📌"}</span>

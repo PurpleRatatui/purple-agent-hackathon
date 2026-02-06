@@ -45,11 +45,12 @@ export default function Home() {
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
         </div>
 
-        <div className="relative max-w-6xl mx-auto px-6 text-center pt-20">
+        <div className="relative max-w-6xl mx-auto px-6 text-center pt-20 pb-32">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-8">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-8 animate-float">
+            <span className="text-xl">🌭</span>
             <span className="text-sm text-gray-300">Live on Solana Devnet</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-1" />
           </div>
 
           {/* Main heading */}
@@ -70,13 +71,11 @@ export default function Home() {
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
             <Link
-              href="/stake"
+              href="/propose"
               className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-purple-600 to-purple-500 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_40px_rgba(124,58,237,0.4)] hover:scale-[1.02]"
             >
               <span className="relative z-10">Start Earning</span>
-              <svg className="w-5 h-5 relative z-10 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
+              <span className="text-2xl relative z-10 group-hover:rotate-12 transition-transform">🌭</span>
             </Link>
             <Link
               href="/query"
@@ -123,7 +122,7 @@ export default function Home() {
                 number="01"
                 title="Stake Your Knowledge"
                 description="Connect your wallet and share expertise, code snippets, or domain knowledge. Each contribution is hashed and stored on-chain."
-                icon="📚"
+                icon="🌭"
                 align="right"
               />
               <TimelineStep
@@ -172,7 +171,7 @@ export default function Home() {
             </div>
 
             <BentoCard icon="⚡" title="Sub-Second Rewards" description="Solana's speed means rewards arrive in milliseconds" />
-            <BentoCard icon="🤖" title="AI-Native Protocol" description="Built for agents and humans to participate equally" />
+            <BentoCard icon="🌭" title="AI-Native Protocol" description="Built for agents and humans to participate equally" />
             <BentoCard icon="🔓" title="Open APIs" description="Integrate SolSage into any AI application" />
             <BentoCard icon="🛡️" title="Quality Scoring" description="AI Curator ensures only valuable knowledge" />
           </div>
@@ -250,7 +249,7 @@ const { staking } = await response.json();
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/stake"
+              href="/propose"
               className="group relative inline-flex items-center justify-center gap-3 px-10 py-5 text-lg font-semibold text-white bg-gradient-to-r from-purple-600 to-emerald-500 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_60px_rgba(124,58,237,0.5)] hover:scale-[1.02]"
             >
               Get Started
