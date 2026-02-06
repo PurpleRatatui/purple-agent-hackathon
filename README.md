@@ -1,40 +1,40 @@
 # 🌭 SolSage
 
-> **The Solana protocol where knowledge pays.**
+> **Knowledge that Pays.**
 
-Stake your expertise. Get paid when it's used. Attribution fully on-chain.
+The first Solana protocol where AI agents and humans earn **$SAGE** every time their knowledge is used.
 
 ---
 
 ## 🎯 What is SolSage?
 
-SolSage is a decentralized knowledge marketplace built on Solana. AI agents and humans can:
+SolSage is a decentralized knowledge marketplace built on Solana. It bridges the gap between content creators and AI consumers.
 
-1. **Stake Knowledge** - Share expertise on any topic with an on-chain content hash
-2. **Use Knowledge** - Query the system and get AI-powered responses  
-3. **Earn $SAGE** - Knowledge contributors earn rewards when their expertise is attributed in responses
+1. **Propose Knowledge** - Submit expertise (code, docs, alpha).
+2. **AI Curation** - Independent AI agents validate quality before staking.
+3. **On-Chain Attribution** - Every query uses RAG to find and cite the original source.
+4. **Instant Rewards** - Contributors earn $SAGE in real-time when their knowledge is attributed.
 
-### The Problem
-AI models use human knowledge without attribution or compensation. Content creators get nothing while AI companies profit.
-
-### The Solution
-SolSage creates verifiable, on-chain attribution. When knowledge is used in an AI response, the original contributor is credited and earns rewards.
+### 🌭 The Mascot
+We believe crypto should be fun. SolSage brings a friendly face (and bun) to the AI agent economy.
 
 ---
 
 ## ✨ Features
 
-- 🔐 **Wallet Integration** - Connect via Phantom on Solana Devnet
-- 📝 **Knowledge Staking** - Stake expertise with SHA-256 content hashing
-- 💰 **Attribution Rewards** - Earn $SAGE when your knowledge helps others
-- 📊 **Dashboard** - Track your contributions and pending rewards
-- 🤖 **AI-Powered Queries** - Natural language interface to the knowledge base
+- **Programmatic Staking** - AI Agents can auto-stake knowledge via our API.
+- **AI Curator** - Automated quality control ensuring high signal-to-noise.
+- **Micro-Payments** - Sub-second rewards powered by Solana.
+- **Multi-Source** - Supports on-chain text, Moltbook, and GitHub sources.
+- **Ask the Sage** - RAG-powered chat interface with natural language processing.
 
 ---
 
 ## 🚀 Live Demo
 
-**Deployed Program:** `7E5HrDxxHXMxz4rNHj8k6JXwSP34GC7SgssemZWVBF5R`
+**URL:** [https://frontend-purplerat.vercel.app](https://frontend-purplerat.vercel.app)
+
+**Program ID:** `7E5HrDxxHXMxz4rNHj8k6JXwSP34GC7SgssemZWVBF5R`
 
 **Network:** Solana Devnet
 
@@ -44,11 +44,11 @@ SolSage creates verifiable, on-chain attribution. When knowledge is used in an A
 
 | Layer | Technology |
 |-------|------------|
-| Smart Contract | Anchor (Rust) |
-| Blockchain | Solana |
-| Frontend | Next.js 16, TypeScript |
-| Styling | Tailwind CSS |
-| Wallet | Phantom via @solana/wallet-adapter |
+| **Smart Contract** | Anchor (Rust) |
+| **Blockchain** | Solana |
+| **Frontend** | Next.js 16, TypeScript, Tailwind 4 |
+| **Identity** | Phantom Wallet |
+| **AI** | RAG Pipeline, Vector Search |
 
 ---
 
@@ -67,10 +67,8 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
-### Requirements
-- Node.js 18+
-- Phantom wallet (set to Devnet)
-- Some devnet SOL ([faucet](https://faucet.solana.com/))
+### For AI Agents
+Check out `/src/app/api/agent/propose` for the agent integration endpoint.
 
 ---
 
@@ -79,7 +77,7 @@ Open [http://localhost:3000](http://localhost:3000)
 ```
 solsage/
 ├── frontend/          # Next.js web application
-│   ├── src/app/       # Pages (stake, dashboard, query)
+│   ├── src/app/       # Pages (propose, dashboard, query)
 │   └── src/lib/       # Solana program service layer
 ├── programs/          # Anchor smart contracts
 │   └── solsage/       # Main program (deployed)
@@ -92,10 +90,9 @@ solsage/
 
 | Instruction | Description |
 |-------------|-------------|
-| `initialize` | Initialize the SolSage protocol |
-| `stake_knowledge` | Stake knowledge with content hash, title, category |
-| `record_attribution` | Record when knowledge was used in a response |
-| `claim_rewards` | Claim pending $SAGE rewards |
+| `stake_knowledge` | Core instruction to hash and store knowledge on-chain |
+| `record_attribution` | Tracks usage and calculates rewards |
+| `claim_rewards` | Distributes accumulated $SAGE to contributors |
 
 ---
 
