@@ -32,7 +32,7 @@ We believe crypto should be fun. SolSage brings a friendly face (and bun) to the
 
 ## 🚀 Live Demo
 
-**URL:** [https://frontend-purplerat.vercel.app](https://frontend-purplerat.vercel.app)
+**URL:** [https://solsage.vercel.app](https://solsage.vercel.app)
 
 **Program ID:** `7E5HrDxxHXMxz4rNHj8k6JXwSP34GC7SgssemZWVBF5R`
 
