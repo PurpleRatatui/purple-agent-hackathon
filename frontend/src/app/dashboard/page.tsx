@@ -7,7 +7,6 @@ import {
     fetchAllKnowledgeEntries,
     fetchProtocolState,
     claimRewards,
-    unstakeKnowledge,
     getExplorerUrl,
     KnowledgeEntryData,
     ProtocolData,
@@ -89,7 +88,6 @@ export default function DashboardPage() {
         message: string;
         explorerUrl?: string;
     } | null>(null);
-    const [isUnstaking, setIsUnstaking] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<"entries" | "attributions" | "leaderboard">("entries");
 
@@ -159,28 +157,6 @@ export default function DashboardPage() {
             });
         } finally {
             setIsClaiming(false);
-        }
-    };
-
-    const handleUnstake = async (entryIndex: number) => {
-        const entry = knowledgeEntries[entryIndex];
-        if (!entry) return;
-
-        if (!window.confirm(`Are you sure you want to unstake "${entry.title}"? This will stop all future earnings and refund your rent.`)) {
-            return;
-        }
-
-        setIsUnstaking(true);
-        try {
-            await unstakeKnowledge(wallet, entry.contentHash);
-            // Refresh data
-            await fetchData();
-            alert("Unstaked successfully! Refund processed.");
-        } catch (error: any) {
-            console.error("Unstake error:", error);
-            alert("Failed to unstake: " + error.message);
-        } finally {
-            setIsUnstaking(false);
         }
     };
 
@@ -365,18 +341,11 @@ export default function DashboardPage() {
                                                             <button
                                                                 onClick={() => handleClaim(idx)}
                                                                 disabled={isClaiming}
-                                                                className="btn-primary text-sm px-3 py-1 mr-2"
+                                                                className="btn-primary text-sm px-3 py-1"
                                                             >
                                                                 {isClaiming ? "..." : "Claim"}
                                                             </button>
                                                         )}
-                                                        <button
-                                                            onClick={() => handleUnstake(idx)}
-                                                            disabled={isUnstaking}
-                                                            className="text-red-400 hover:text-red-300 text-sm px-3 py-1 border border-red-500/30 rounded hover:bg-red-500/10 transition-colors"
-                                                        >
-                                                            {isUnstaking ? "..." : "Unstake"}
-                                                        </button>
                                                     </td>
                                                 </tr>
                                             ))}

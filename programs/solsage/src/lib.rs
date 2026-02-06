@@ -48,10 +48,6 @@ pub fn process_instruction(
             msg!("Instruction: ClaimRewards");
             process_claim_rewards(program_id, accounts)
         }
-        SolSageInstruction::UnstakeKnowledge => {
-            msg!("Instruction: UnstakeKnowledge");
-            process_unstake_knowledge(program_id, accounts)
-        }
     }
 }
 
@@ -97,13 +93,6 @@ pub enum SolSageInstruction {
     /// 0. [signer] Staker
     /// 1. [writable] Knowledge entry account
     ClaimRewards,
-
-    /// Unstake knowledge (close account)
-    /// Accounts:
-    /// 0. [writable, signer] Staker
-    /// 1. [writable] Knowledge entry account
-    /// 2. [writable] Protocol account
-    UnstakeKnowledge,
 }
 
 // ============================================================================
@@ -430,46 +419,5 @@ fn process_claim_rewards(
 
     // In MVP, we just log - actual token transfer would happen here
     msg!("Claimed {} SAGE tokens", reward_amount);
-    Ok(())
-}
-
-fn process_unstake_knowledge(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let staker = next_account_info(account_info_iter)?;
-    let knowledge_account = next_account_info(account_info_iter)?;
-    let protocol_account = next_account_info(account_info_iter)?;
-
-    if !staker.is_signer {
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-
-    let knowledge = KnowledgeEntry::try_from_slice(&knowledge_account.data.borrow())?;
-    
-    // Verify staker is owner
-    if knowledge.staker != *staker.key {
-        return Err(SolSageError::NotKnowledgeOwner.into());
-    }
-
-    // Update protocol stats
-    let mut protocol = Protocol::try_from_slice(&protocol_account.data.borrow())?;
-    if protocol.total_knowledge_entries > 0 {
-        protocol.total_knowledge_entries -= 1;
-        protocol.serialize(&mut &mut protocol_account.data.borrow_mut()[..])?;
-    }
-
-    // Close account:
-    // 1. Transfer all lamports to staker
-    let dest_lamports = staker.lamports();
-    **staker.lamports.borrow_mut() = dest_lamports.checked_add(knowledge_account.lamports()).unwrap();
-    **knowledge_account.lamports.borrow_mut() = 0;
-    
-    // 2. Clear data and set owner to system program
-    knowledge_account.assign(&solana_program::system_program::ID);
-    knowledge_account.realloc(0, false)?; 
-
-    msg!("Knowledge unstaked");
     Ok(())
 }
