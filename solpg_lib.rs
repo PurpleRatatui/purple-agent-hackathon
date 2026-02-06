@@ -100,6 +100,19 @@ pub mod solsage {
 
         Ok(())
     }
+
+    /// Unstake knowledge (close account)
+    pub fn unstake_knowledge(ctx: Context<UnstakeKnowledge>) -> Result<()> {
+        let title = &ctx.accounts.knowledge_entry.title;
+        msg!("Knowledge unstaked: {}", title);
+        
+        let protocol = &mut ctx.accounts.protocol;
+        if protocol.total_knowledge_entries > 0 {
+            protocol.total_knowledge_entries -= 1;
+        }
+        
+        Ok(())
+    }
 }
 
 // ============================================================================
@@ -181,6 +194,28 @@ pub struct ClaimRewards<'info> {
     #[account(mut)]
     pub knowledge_entry: Account<'info, KnowledgeEntry>,
     
+    pub staker: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UnstakeKnowledge<'info> {
+    #[account(
+        mut,
+        seeds = [b"protocol"],
+        bump = protocol.bump
+    )]
+    pub protocol: Account<'info, Protocol>,
+    
+    #[account(
+        mut, 
+        close = staker,
+        has_one = staker,
+        seeds = [b"knowledge", staker.key().as_ref(), &knowledge_entry.content_hash],
+        bump = knowledge_entry.bump
+    )]
+    pub knowledge_entry: Account<'info, KnowledgeEntry>,
+    
+    #[account(mut)]
     pub staker: Signer<'info>,
 }
 

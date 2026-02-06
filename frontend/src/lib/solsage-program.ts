@@ -49,6 +49,7 @@ const INSTRUCTION_DISCRIMINATORS = {
     stake_knowledge: new Uint8Array([113, 12, 110, 85, 80, 21, 46, 84]),
     record_attribution: new Uint8Array([226, 192, 112, 45, 156, 82, 14, 31]),
     claim_rewards: new Uint8Array([4, 144, 132, 71, 116, 23, 151, 80]),
+    unstake_knowledge: new Uint8Array([163, 240, 218, 95, 241, 141, 159, 148]),
 };
 
 // Interface for knowledge entry data
@@ -270,6 +271,43 @@ export async function claimRewards(
         keys: [
             { pubkey: knowledgeEntryPDA, isSigner: false, isWritable: true },
             { pubkey: wallet.publicKey, isSigner: true, isWritable: false },
+        ],
+        data: Buffer.from(instructionData),
+    });
+
+    const transaction = new Transaction().add(instruction);
+    transaction.feePayer = wallet.publicKey;
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+    const signedTx = await wallet.signTransaction(transaction);
+    const signature = await connection.sendRawTransaction(signedTx.serialize());
+    await connection.confirmTransaction(signature, 'confirmed');
+
+    return signature;
+}
+
+// Unstake knowledge (close account)
+export async function unstakeKnowledge(
+    wallet: WalletContextState,
+    contentHash: Uint8Array
+): Promise<string> {
+    if (!wallet.publicKey || !wallet.signTransaction) {
+        throw new Error('Wallet not connected');
+    }
+
+    // Derive PDAs
+    const [protocolPDA] = deriveProtocolPDA();
+    const [knowledgePDA] = deriveKnowledgePDA(wallet.publicKey, contentHash);
+
+    // Build instruction data: discriminator only
+    const instructionData = INSTRUCTION_DISCRIMINATORS.unstake_knowledge;
+
+    const instruction = new TransactionInstruction({
+        programId: SOLSAGE_PROGRAM_ID,
+        keys: [
+            { pubkey: protocolPDA, isSigner: false, isWritable: true },
+            { pubkey: knowledgePDA, isSigner: false, isWritable: true },
+            { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
         ],
         data: Buffer.from(instructionData),
     });
